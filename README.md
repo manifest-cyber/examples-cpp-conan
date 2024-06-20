@@ -1332,3 +1332,160 @@ If you're using conan v1, we generally recommend t**rivy** for most scenarios be
 Regrettably, it’s fair to state that as of today, **cdxgen** should not be used in most scenarios due to its inferior results compared to other options. However, it may be useful for projects that lack conan support.
 
 If you want to use conan V2, your only option is to use the conan extension solution. Luckily, it provides a high-quality SBOM, although only CDX SBOM(up to V1.4) is supported.
+
+# Appendix: Migrating a C++ Project to Conan
+
+## Install Conan
+
+First, you need to install Conan. If you don’t already have it, you can install it using pip:
+
+```
+pip install conan # for v1 "conan==1.64.0"
+
+```
+
+## Create a conanfile.py
+
+In the root directory of your C++ project, create a file named conanfile.py. This file will manage your dependencies.
+
+Here is an example of what `conanfile.py` might look like:
+
+```python
+from conan import ConanFile
+from conan.tools.cmake import CMakeToolchain, CMake, cmake_layout
+
+class MyProjectConan(ConanFile):
+    name = "myproject"
+    version = "1.0"
+    license = "MIT"
+    author = "John Doe <john.doe@example.com>"
+    url = "https://github.com/myproject/myproject"
+    description = "A short description of my project"
+    topics = ("conan", "cmake", "example")
+    settings = "os", "compiler", "build_type", "arch"
+    options = {"shared": [True, False]}
+    default_options = {"shared": False}
+    requires = [
+        "boost/1.85.0",
+        "fmt/8.0.1",
+    ]
+    build_requires = [
+        "gtest/1.11.0"
+    ]
+    generators = "CMakeDeps", "CMakeToolchain"
+
+    def layout(self):
+        cmake_layout(self)
+
+    def generate(self):
+        tc = CMakeToolchain(self)
+        tc.generate()
+
+    def build(self):
+        cmake = CMake(self)
+        cmake.configure()
+        cmake.build()
+
+    def imports(self):
+        self.copy("*.dll", dst="bin", src="bin")
+        self.copy("*.dylib*", dst="bin", src="lib")
+
+    def build_requirements(self):
+        self.tool_requires("cmake/3.21.1")  # Specify a specific version of CMake if needed
+
+    def package(self):
+        self.copy("*.h", dst="include", src="src")
+        self.copy("*.lib", dst="lib", keep_path=False)
+        self.copy("*.dll", dst="bin", keep_path=False)
+        self.copy("*.so", dst="lib", keep_path=False)
+        self.copy("*.dylib", dst="lib", keep_path=False)
+        self.copy("*.a", dst="lib", keep_path=False)
+
+    def package_info(self):
+        self.cpp_info.libs = ["myproject"]
+```
+
+Replace `boost/1.85.0`, `fmt/8.0.1`, and `gtest/1.11.0` with the actual dependencies your project needs.
+The `build_requirements` method ensures that any necessary build tools, like a specific version of `CMake`, are available.
+
+## Integrate Conan with CMake
+
+If your project uses `CMake`, you’ll need to update your `CMakeLists.txt` to integrate with Conan. Here is an example of a typical `CMakeLists.txt` file before and after the integration:
+
+```
+cmake_minimum_required(VERSION 3.10)
+project(MyProject)
+
+set(CMAKE_CXX_STANDARD 11)
+
+add_executable(MyProject main.cpp)
+```
+
+Updated `CMakeLists.txt` with Conan integration:
+
+```
+cmake_minimum_required(VERSION 3.10)
+project(MyProject)
+
+set(CMAKE_CXX_STANDARD 11)
+
+find_package(Boost REQUIRED)
+find_package(fmt REQUIRED)
+find_package(GTest REQUIRED)
+
+add_executable(MyProject main.cpp)
+
+target_link_libraries(MyProject Boost::Boost fmt::fmt GTest::GTest)
+```
+
+## Install Dependencies with Conan
+
+conan v1:
+
+```
+conan install . --build=missing
+conan lock create conanfile.py --lockfile-out=conan.lock
+```
+
+The first command will download and build any missing dependencies, generating the necessary files for CMake to find them.
+The second command will create a lockfile named `conan.lock`, which will ensure the exact versions of dependencies are used in future builds.
+
+conan v2:
+
+```
+conan install . --build=missing --lockfile-out=conan.lock
+```
+
+Does the same but with single command.
+
+## Build
+
+Now, you can build your project using CMake. Run the following command:
+
+```
+conan build .
+```
+
+## Update source code to use packages
+
+Ensure that your source code includes the headers and links against the libraries provided by conan. For example:
+
+```
+#include <boost/asio.hpp>
+#include <fmt/core.h>
+#include <gtest/gtest.h>
+
+int main() {
+    boost::asio::io_context io_context;
+    fmt::print("Hello, world!\n");
+    return 0;
+}
+```
+
+Make sure to adjust include paths and library links as needed, based on the dependencies specified in your `conanfile.py`.
+
+## Conclusion
+
+By following these steps, you have successfully migrated your vanilla C++ project to use Conan v1/v2 with `conanfile.py` and generate a `conan.lock` needed for quality SBOMs and for dependency management.
+
+This setup ensures consistent builds, and makes it easier to handle updates and new dependencies in the future. The addition of a lockfile ensures reproducible builds by locking the exact versions of dependencies used.
