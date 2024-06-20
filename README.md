@@ -14,8 +14,37 @@ By utilizing this repository, a fork from [egendron93/cpp_library_template](http
 ## Prerequisites
 
 - Install **Manifest CLI** by following the [installation guide](https://github.com/manifest-cyber/cli).
-- **conan** **v1** is installed and configured. (v2 is required for conan extensions)
+- **conan** **v1** is installed and configured. (v2 is required for conan extensions):
 - (optional) Node, NPM installed (**cdxgen** only)
+
+## Conan installation
+
+Conan is a python-based software, installation should be as easy as running:
+
+```
+pip install conan
+
+```
+
+This will install v2 by default, to install a specific version run:
+
+```
+pip install "conan==1.64.0"
+```
+
+if using `pipx`, you can run:
+
+```
+pipx ensurepath && pipx install "conan==1.64.0"
+```
+
+For more information, go to the [official installation guide](https://docs.conan.io/2/installation.html).
+
+## SBOM Quality
+
+A quality SBOM possesses key traits that ensure comprehensiveness and accuracy. It must detect all direct dependencies and identify transitive dependencies to capture the full hierarchy of components. Each component should include detailed license data and precise identifiers such as Package URLs (purl), CPEs, and SHA for integrity and traceability.
+
+Additionally, a quality SBOM features a clear dependency tree, illustrating the interconnections among components. Accurate metadata for each component, including the root component, is crucial for providing a reliable and comprehensive resource to understand the software’s composition and manage potential risks.
 
 ## Generate
 
@@ -103,13 +132,13 @@ The output should look like this:
 
 ```
 
-The empty SBOM is expected as **syft** doesn’t support [`conanfile.py`](http://conanfile.py) , however, it supports `conan.lock` file, to generate it run: 
+The empty SBOM is expected as **syft** doesn’t support [`conanfile.py`](http://conanfile.py) , however, it supports `conan.lock` file, to generate it run:
 
 ```groovy
-conan lock create conanfile.py 
+conan lock create conanfile.py
 ```
 
-If for some reason the build fails, try running within a linux container, an additional .devcontainer is configured for this project. 
+If for some reason the build fails, try running within a linux container, an additional .devcontainer is configured for this project.
 
 re-run generation:
 
@@ -361,7 +390,7 @@ re-run generation:
 
 ```
 
-The results appear to include all build and runtime dependencies with an accurate dependency tree; however, they lack license data. This type of information is not contained in the `conan.lock` file. syft also generates CPEs which are helpful for license and vulnerability matching. 
+The results appear to include all build and runtime dependencies with an accurate dependency tree; however, they lack license data. This type of information is not contained in the `conan.lock` file. syft also generates CPEs which are helpful for license and vulnerability matching.
 
 **Cdxgen**
 
@@ -1103,7 +1132,7 @@ conan install . --build=missing --lockfile-out=conan.lock
 Run SBOM generation:
 
 ```tsx
-conan sbom:cyclonedx --format 1.4_json .      
+conan sbom:cyclonedx --format 1.4_json .
 ```
 
 ```tsx
@@ -1296,7 +1325,7 @@ As expected, the deep integration with Conan's core functions enabled the extens
 
 ## Conclusion
 
-In regards to SBOM generation, the C/++ community using Conan is fairly covered by open source generators that can generate quality outputs. 
+In regards to SBOM generation, the C/++ community using Conan is fairly covered by open source generators that can generate quality outputs.
 
 If you're using conan v1, we generally recommend t**rivy** for most scenarios because it can provide license data. However, if license data isn't important to you and you prefer the addition of CPE, s**yft** would be the next best option.
 
