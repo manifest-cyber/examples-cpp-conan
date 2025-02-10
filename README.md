@@ -4,10 +4,11 @@
 
 SBOM generation has become essential for detecting vulnerabilities, ensuring compliance, and addressing license issues. Although it may seem straightforward, the quality of results varies based on ecosystems, generators, formats, and specific project files.
 
-By utilizing this repository, a fork from [egendron93/cpp_library_template](https://github.com/egendron93/cpp_library_template), which is an open-source C++ library with conan as package manager, we aim to demonstrate different outputs and guide you through the SBOM generation process and its expected results. This will assist you in reproducing the process in your own projects with Manifest.
+By utilizing this repository, a fork from [egendron93/cpp_library_template](https://github.com/egendron93/cpp_library_template), which is an open-source C++ library with Conan as the package manager, we aim to demonstrate different outputs and guide you through the SBOM generation process and its expected results. This will assist you in reproducing the process in your own projects with Manifest.
 
 <aside>
-⚠️ This repository assumes the use of Conan. To this date, other package managers and C/++ projects without package managers are not supported by any OSS generator.
+
+⚠️ This repository assumes the use of Conan. To date, other package managers and C/++ projects without package managers are not supported by any OSS generator.
 
 </aside>
 
@@ -15,54 +16,75 @@ By utilizing this repository, a fork from [egendron93/cpp_library_template](http
 
 - Install **Manifest CLI** by following the [installation guide](https://github.com/manifest-cyber/cli).
 - **conan** **v1** is installed and configured. (v2 is required for conan extensions):
+- python3 or python installed. (pip3 or pip)
 - (optional) Node, NPM installed (**cdxgen** only)
 
 ## Conan installation
 
-Conan is a python-based software, installation should be as easy as running:
+Conan is a Python-based software package manager. Installation should be as easy as running:
 
 ```
 pip install conan
-
 ```
 
 This will install v2 by default, to install a specific version run:
 
+for python run:
+
 ```
-pip install "conan==1.64.0"
+pip install "conan==1.66.0"
+```
+
+for python3 run:
+
+```
+pip3 install "conan<2"
 ```
 
 if using `pipx`, you can run:
 
 ```
-pipx ensurepath && pipx install "conan==1.64.0"
+pipx ensurepath && pipx install "conan==1.66.0"
 ```
 
-For more information, go to the [official installation guide](https://docs.conan.io/2/installation.html).
+To verify conan is installed correctly, run:
+
+```
+conan --version
+```
+
+You should see output similar to:
+
+```
+Conan version 1.x.y
+```
+
+For more information, visit the [official installation guide](https://docs.conan.io/2/installation.html).
 
 ## SBOM Quality
 
-A quality SBOM possesses key traits that ensure comprehensiveness and accuracy. It must detect all direct dependencies and identify transitive dependencies to capture the full hierarchy of components. Each component should include detailed license data and precise identifiers such as Package URLs (purl), CPEs, and SHA for integrity and traceability.
+A quality SBOM possesses key traits that ensure comprehensiveness and accuracy:
 
-Additionally, a quality SBOM features a clear dependency tree, illustrating the interconnections among components. Accurate metadata for each component, including the root component, is crucial for providing a reliable and comprehensive resource to understand the software’s composition and manage potential risks.
+- Detects **all direct dependencies**.
+- Identifies **transitive dependencies** to capture the full hierarchy of components.
+- Includes **detailed license data**.
+- Provides **precise identifiers** such as Package URLs (purl), CPEs, and SHA for integrity and traceability.
+- Features a **clear dependency tree** illustrating interconnections among components.
+- Includes **accurate metadata** for each component, including the root component.
 
-## Generate
+## Generate SBOM
 
-In this example, we would compare the results of **syft**, **trivy,** and **cdxgen.**
+In this example, we compare the results of **Syft**, **Trivy**, and **Cdxgen**.
 
-<aside>
-⚠️ Even though other generators exists, they do not provide support for C/++ and conan projects.
+> ⚠️ Other generators exist, but they do not provide support for C/++ and Conan projects.
 
-</aside>
-
-<aside>
-⚠️ Important! We are currently using conan v1 because not all features have been ported and breaking changes fixed for v2. If you prefer to use v2, feel free to skip this part.
+> ⚠️ Important! We are currently using **Conan v1** because not all features have been ported and breaking changes fixed for v2. If you prefer to use v2, feel free to skip this part.
 
 </aside>
 
 ### Installing Generators
 
-The **manifest-cli** cannot function without the proper installation of the underlying generators. Fortunately, you can install them using the following command.
+The **manifest-cli** requires proper installation of the underlying generators. You can install them using:
 
 ```bash
 manifest-cli install -g cdxgen
@@ -70,44 +92,56 @@ manifest-cli install -g syft
 manifest-cli install -g trivy
 ```
 
-### Project files
+> ⚠️ If you install into the default location (e.g. /usr/local/bin), you may need to use `sudo` alternatively, install into a custom directory with the `-d` flag (for example, /path/to/your/bin) and ensure that directory is in your $PATH, or call the binary directly.
 
-Conan projects have different configurations such as `conanfile.txt` , `conaninfo.txt` , `conanfile.py` and `conanfile.lock` .
+### Project Files
 
-This project `main` branch uses [`conanfile.py`](http://conanfile.py) which is the more robust and recommended way by conan. see `legacy` for example with `conanfile.txt` and `conaninfo.txt` .
+Conan projects have different configurations such as `conanfile.txt`, `conaninfo.txt`, `conanfile.py`, and `conanfile.lock`.
 
-### Generation with Manifest
+This project uses [`conanfile.py`](http://conanfile.py), which is the more robust and recommended way by Conan. See the `legacy` branch for an example with `conanfile.txt` and `conaninfo.txt`.
+
+### Generating SBOM with Manifest
 
 The example project uses a mix of those, lets attempt to generate an SBOM and compare the results.
 
-**Syft**
+#### **Syft**
 
-```tsx
-manifest-cli sbom --name=cpp --version=0.0.0-dev --generator=syft -f test-syft.json .
+Run:
 
+Syft uses `conan.lock` file to detect direct and transitive dependencies, to generate one run:
+
+```bash
+conan lock create conanfile.py --lockfile-out=conan.lock
 ```
 
-The output should look like this:
+Then, to generate a SBOM run:
+
+```bash
+manifest-cli sbom --name=cpp --version=0.0.0-dev --generator=syft -f syft-sbom.json .
+```
+
+The output should look like this
 
 ```tsx
 {
-  "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
   "bomFormat": "CycloneDX",
-  "specVersion": "1.5",
+  "specVersion": "1.6",
   "version": 1,
   "metadata": {
+    "timestamp": "2025-02-10T14:34:11-06:00",
     "tools": {
       "components": [
         {
           "type": "application",
           "author": "anchore",
           "name": "syft",
-          "version": "1.3.0"
+          "version": "1.18.1"
         }
       ]
     },
     "component": {
-      "bom-ref": "cpp@0.0.0-dev",
+      "bom-ref": "0a68eb57-c88a-5f34-9e9d-27f85e68af4f",
       "type": "application",
       "name": "cpp",
       "version": "0.0.0-dev"
@@ -115,917 +149,666 @@ The output should look like this:
   },
   "components": [
     {
-      "bom-ref": ".@:af63bd4c8601b7f1",
-      "type": "file",
-      "name": "."
-    }
-  ],
-  "dependencies": [
-    {
-      "ref": "cpp@0.0.0-dev",
-      "dependsOn": [
-        ".@:af63bd4c8601b7f1"
-      ]
-    }
-  ]
-}
-
-```
-
-The empty SBOM is expected as **syft** doesn’t support [`conanfile.py`](http://conanfile.py) , however, it supports `conan.lock` file, to generate it run:
-
-```groovy
-conan lock create conanfile.py
-```
-
-If for some reason the build fails, try running within a linux container, an additional .devcontainer is configured for this project.
-
-re-run generation:
-
-```tsx
-{
-  "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
-  "bomFormat": "CycloneDX",
-  "specVersion": "1.5",
-  "version": 1,
-  "metadata": {
-    "tools": {
-      "components": [
-        {
-          "type": "application",
-          "author": "anchore",
-          "name": "syft",
-          "version": "1.3.0"
-        }
-      ]
-    },
-    "component": {
-      "bom-ref": "cpp@0.0.0-dev",
-      "type": "application",
-      "name": "cpp",
-      "version": "0.0.0-dev"
-    }
-  },
-  "components": [
-    {
-      "bom-ref": ".@:af63bd4c8601b7f1",
-      "type": "file",
-      "name": ".",
-      "components": [
-        {
-          "bom-ref": ".@:pkg:conan/gtest@1.14.0?package-id=774c846603720ad7",
-          "type": "library",
-          "name": "gtest",
-          "version": "1.14.0",
-          "cpe": "cpe:2.3:a:gtest:gtest:1.14.0:*:*:*:*:*:*:*",
-          "purl": "pkg:conan/gtest@1.14.0",
-          "properties": [
-            {
-              "name": "syft:package:foundBy",
-              "value": "conan-cataloger"
-            },
-            {
-              "name": "syft:package:language",
-              "value": "c++"
-            },
-            {
-              "name": "syft:package:type",
-              "value": "conan"
-            },
-            {
-              "name": "syft:package:metadataType",
-              "value": "c-conan-lock-entry"
-            },
-            {
-              "name": "syft:location:0:path",
-              "value": "/conan.lock"
-            }
-          ]
-        },
-        {
-          "bom-ref": ".@:pkg:conan/hello_world@1.0.0?package-id=1c0e4535a9fb07fc",
-          "type": "library",
-          "name": "hello_world",
-          "version": "1.0.0",
-          "cpe": "cpe:2.3:a:hello-world:hello-world:1.0.0:*:*:*:*:*:*:*",
-          "purl": "pkg:conan/hello_world@1.0.0",
-          "properties": [
-            {
-              "name": "syft:package:foundBy",
-              "value": "conan-cataloger"
-            },
-            {
-              "name": "syft:package:language",
-              "value": "c++"
-            },
-            {
-              "name": "syft:package:type",
-              "value": "conan"
-            },
-            {
-              "name": "syft:package:metadataType",
-              "value": "c-conan-lock-entry"
-            },
-            {
-              "name": "syft:cpe23",
-              "value": "cpe:2.3:a:hello-world:hello_world:1.0.0:*:*:*:*:*:*:*"
-            },
-            {
-              "name": "syft:cpe23",
-              "value": "cpe:2.3:a:hello_world:hello-world:1.0.0:*:*:*:*:*:*:*"
-            },
-            {
-              "name": "syft:cpe23",
-              "value": "cpe:2.3:a:hello_world:hello_world:1.0.0:*:*:*:*:*:*:*"
-            },
-            {
-              "name": "syft:cpe23",
-              "value": "cpe:2.3:a:hello:hello-world:1.0.0:*:*:*:*:*:*:*"
-            },
-            {
-              "name": "syft:cpe23",
-              "value": "cpe:2.3:a:hello:hello_world:1.0.0:*:*:*:*:*:*:*"
-            },
-            {
-              "name": "syft:location:0:path",
-              "value": "/conan.lock"
-            }
-          ]
-        },
-        {
-          "bom-ref": ".@:pkg:conan/mathter@1.1.1?package-id=6a9872a2438c3cba",
-          "type": "library",
-          "name": "mathter",
-          "version": "1.1.1",
-          "cpe": "cpe:2.3:a:mathter:mathter:1.1.1:*:*:*:*:*:*:*",
-          "purl": "pkg:conan/mathter@1.1.1",
-          "properties": [
-            {
-              "name": "syft:package:foundBy",
-              "value": "conan-cataloger"
-            },
-            {
-              "name": "syft:package:language",
-              "value": "c++"
-            },
-            {
-              "name": "syft:package:type",
-              "value": "conan"
-            },
-            {
-              "name": "syft:package:metadataType",
-              "value": "c-conan-lock-entry"
-            },
-            {
-              "name": "syft:location:0:path",
-              "value": "/conan.lock"
-            }
-          ]
-        },
-        {
-          "bom-ref": ".@:pkg:conan/ms-gsl@4.0.0?package-id=8561fa79ef7b4a03",
-          "type": "library",
-          "name": "ms-gsl",
-          "version": "4.0.0",
-          "cpe": "cpe:2.3:a:ms-gsl:ms-gsl:4.0.0:*:*:*:*:*:*:*",
-          "purl": "pkg:conan/ms-gsl@4.0.0",
-          "properties": [
-            {
-              "name": "syft:package:foundBy",
-              "value": "conan-cataloger"
-            },
-            {
-              "name": "syft:package:language",
-              "value": "c++"
-            },
-            {
-              "name": "syft:package:type",
-              "value": "conan"
-            },
-            {
-              "name": "syft:package:metadataType",
-              "value": "c-conan-lock-entry"
-            },
-            {
-              "name": "syft:cpe23",
-              "value": "cpe:2.3:a:ms-gsl:ms_gsl:4.0.0:*:*:*:*:*:*:*"
-            },
-            {
-              "name": "syft:cpe23",
-              "value": "cpe:2.3:a:ms_gsl:ms-gsl:4.0.0:*:*:*:*:*:*:*"
-            },
-            {
-              "name": "syft:cpe23",
-              "value": "cpe:2.3:a:ms_gsl:ms_gsl:4.0.0:*:*:*:*:*:*:*"
-            },
-            {
-              "name": "syft:cpe23",
-              "value": "cpe:2.3:a:ms:ms-gsl:4.0.0:*:*:*:*:*:*:*"
-            },
-            {
-              "name": "syft:cpe23",
-              "value": "cpe:2.3:a:ms:ms_gsl:4.0.0:*:*:*:*:*:*:*"
-            },
-            {
-              "name": "syft:location:0:path",
-              "value": "/conan.lock"
-            }
-          ]
-        },
-        {
-          "bom-ref": ".@:pkg:conan/xsimd@11.1.0?package-id=82c175e62a3194ad",
-          "type": "library",
-          "name": "xsimd",
-          "version": "11.1.0",
-          "cpe": "cpe:2.3:a:xsimd:xsimd:11.1.0:*:*:*:*:*:*:*",
-          "purl": "pkg:conan/xsimd@11.1.0",
-          "properties": [
-            {
-              "name": "syft:package:foundBy",
-              "value": "conan-cataloger"
-            },
-            {
-              "name": "syft:package:language",
-              "value": "c++"
-            },
-            {
-              "name": "syft:package:type",
-              "value": "conan"
-            },
-            {
-              "name": "syft:package:metadataType",
-              "value": "c-conan-lock-entry"
-            },
-            {
-              "name": "syft:location:0:path",
-              "value": "/conan.lock"
-            }
-          ]
-        }
-      ]
-    }
-  ],
-  "dependencies": [
-    {
-      "ref": ".@:pkg:conan/hello_world@1.0.0?package-id=1c0e4535a9fb07fc",
-      "dependsOn": [
-        ".@:pkg:conan/mathter@1.1.1?package-id=6a9872a2438c3cba",
-        ".@:pkg:conan/ms-gsl@4.0.0?package-id=8561fa79ef7b4a03"
-      ]
-    },
-    {
-      "ref": ".@:pkg:conan/mathter@1.1.1?package-id=6a9872a2438c3cba",
-      "dependsOn": [
-        ".@:pkg:conan/xsimd@11.1.0?package-id=82c175e62a3194ad"
-      ]
-    },
-    {
-      "ref": "cpp@0.0.0-dev",
-      "dependsOn": [
-        ".@:af63bd4c8601b7f1"
-      ]
-    }
-  ]
-}
-
-```
-
-The results appear to include all build and runtime dependencies with an accurate dependency tree; however, they lack license data. This type of information is not contained in the `conan.lock` file. syft also generates CPEs which are helpful for license and vulnerability matching.
-
-**Cdxgen**
-
-```tsx
-manifest-cli sbom --name=cpp --version=0.0.0-dev --generator=cdxgen -vvv -f test-cdx.json .
-```
-
-Unlike syft, **cdxgen** supports many project C/++ project files, such as [`conanfile.py`](http://conanfile.py) and `CMakeLists.txt` alongside `conan.lock` .
-
-```tsx
-{
-  "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
-  "bomFormat": "CycloneDX",
-  "specVersion": "1.5",
-  "version": 1,
-  "metadata": {
-    "tools": {
-      "components": [
-        {
-          "bom-ref": "pkg:npm/@cyclonedx/cdxgen@10.6.1",
-          "type": "application",
-          "author": "OWASP Foundation",
-          "publisher": "OWASP Foundation",
-          "group": "@cyclonedx",
-          "name": "cdxgen",
-          "version": "10.6.1",
-          "purl": "pkg:npm/%40cyclonedx/cdxgen@10.6.1"
-        }
-      ]
-    },
-    "component": {
-      "bom-ref": "cpp@0.0.0-dev",
-      "type": "application",
-      "name": "cpp",
-      "version": "0.0.0-dev"
-    }
-  },
-  "components": [
-    {
-      "bom-ref": "cpp_library_template@latest:pkg:gem/cpp_library_template@latest",
-      "type": "application",
-      "name": "cpp_library_template",
-      "version": "latest",
-      "purl": "pkg:gem/cpp_library_template@latest",
-      "components": [
-        {
-          "bom-ref": "cpp_library_template@latest:pkg:generic/hello_world",
-          "type": "application",
-          "name": "hello_world",
-          "purl": "pkg:generic/hello_world"
-        },
-        {
-          "bom-ref": "cpp_library_template@latest:pkg:conan/hello_world@1.0.0",
-          "type": "library",
-          "name": "hello_world",
-          "version": "1.0.0",
-          "purl": "pkg:conan/hello_world@1.0.0"
-        },
-        {
-          "bom-ref": "cpp_library_template@latest:pkg:conan/mathter@1.1.1",
-          "type": "library",
-          "name": "mathter",
-          "version": "1.1.1",
-          "purl": "pkg:conan/mathter@1.1.1"
-        },
-        {
-          "bom-ref": "cpp_library_template@latest:pkg:conan/xsimd@11.1.0",
-          "type": "library",
-          "name": "xsimd",
-          "version": "11.1.0",
-          "purl": "pkg:conan/xsimd@11.1.0"
-        },
-        {
-          "bom-ref": "cpp_library_template@latest:pkg:conan/ms-gsl@4.0.0",
-          "type": "library",
-          "name": "ms-gsl",
-          "version": "4.0.0",
-          "purl": "pkg:conan/ms-gsl@4.0.0"
-        },
-        {
-          "bom-ref": "cpp_library_template@latest:pkg:conan/gtest@1.14.0",
-          "type": "library",
-          "name": "gtest",
-          "version": "1.14.0",
-          "purl": "pkg:conan/gtest@1.14.0"
-        },
-        {
-          "bom-ref": "cpp_library_template@latest:pkg:generic/hello_world",
-          "type": "library",
-          "name": "hello_world",
-          "purl": "pkg:generic/hello_world"
-        },
-        {
-          "bom-ref": "cpp_library_template@latest:pkg:generic/gtest",
-          "type": "library",
-          "name": "gtest",
-          "purl": "pkg:generic/gtest",
-          "properties": [
-            {
-              "name": "name_with_version",
-              "value": "googletest-1.14.0"
-            },
-            {
-              "name": "analyzed_version",
-              "value": "googletest-1.14.0"
-            },
-            {
-              "name": "analyzed_source_url",
-              "value": "https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz"
-            },
-            {
-              "name": "analyzed_source_filename",
-              "value": "gtest-1.14.0.tar.gz"
-            },
-            {
-              "name": "analyzed_source_hash",
-              "value": "8ad598c73ad796e0d8280b082cebd82a630d73e73cd3c70057938a6501bba5d7"
-            },
-            {
-              "name": "PkgProvides",
-              "value": "gmock, gmock_main, gtest, gtest_main"
-            },
-            {
-              "name": "available_versions",
-              "value": "1.14.0-1, 1.13.0-1, 1.12.1-1, 1.11.0-2, 1.11.0-1, 1.10.0-1, 1.8.1-1, 1.8.0-5, 1.8.0-4, 1.8.0-3, 1.8.0-2, 1.8.0-1, 1.7.0-5, 1.7.0-4, 1.7.0-2"
-            }
-          ],
-          "evidence": {
-            "identity": {
-              "field": "purl",
-              "confidence": 0.5,
-              "methods": [
-                {
-                  "technique": "source-code-analysis",
-                  "confidence": 0.5,
-                  "value": "Filename /Users/oriavraham/Development/examples/cpp/cpp_library_template/tests/CMakeLists.txt"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "bom-ref": "cpp_library_template@latest:pkg:generic/PackageTest",
-          "type": "library",
-          "name": "PackageTest",
-          "purl": "pkg:generic/PackageTest"
-        },
-        {
-          "bom-ref": "cpp_library_template@latest:pkg:generic/Mathter@1.1.1",
-          "type": "library",
-          "name": "Mathter",
-          "version": "1.1.1",
-          "purl": "pkg:generic/Mathter@1.1.1",
-          "evidence": {
-            "identity": {
-              "field": "purl",
-              "confidence": 0,
-              "methods": [
-                {
-                  "technique": "source-code-analysis",
-                  "confidence": 0.5,
-                  "value": "Filename /Users/oriavraham/Development/examples/cpp/cpp_library_template/src/CMakeLists.txt"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "bom-ref": "cpp_library_template@latest:pkg:generic/Microsoft.GSL@4.0.0",
-          "type": "library",
-          "name": "Microsoft.GSL",
-          "version": "4.0.0",
-          "purl": "pkg:generic/Microsoft.GSL@4.0.0",
-          "evidence": {
-            "identity": {
-              "field": "purl",
-              "confidence": 0,
-              "methods": [
-                {
-                  "technique": "source-code-analysis",
-                  "confidence": 0.5,
-                  "value": "Filename /Users/oriavraham/Development/examples/cpp/cpp_library_template/src/CMakeLists.txt"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "bom-ref": "cpp_library_template@latest:pkg:generic/mathter",
-          "type": "library",
-          "name": "mathter",
-          "purl": "pkg:generic/mathter",
-          "evidence": {
-            "identity": {
-              "field": "purl",
-              "confidence": 0,
-              "methods": [
-                {
-                  "technique": "source-code-analysis",
-                  "confidence": 0.5,
-                  "value": "Filename /Users/oriavraham/Development/examples/cpp/cpp_library_template/build/Release/generators/conandeps_legacy.cmake"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "bom-ref": "cpp_library_template@latest:pkg:generic/Microsoft.GSL",
-          "type": "library",
-          "name": "Microsoft.GSL",
-          "purl": "pkg:generic/Microsoft.GSL",
-          "evidence": {
-            "identity": {
-              "field": "purl",
-              "confidence": 0,
-              "methods": [
-                {
-                  "technique": "source-code-analysis",
-                  "confidence": 0.5,
-                  "value": "Filename /Users/oriavraham/Development/examples/cpp/cpp_library_template/build/Release/generators/conandeps_legacy.cmake"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    }
-  ],
-  "dependencies": [
-    {
-      "ref": "cpp@0.0.0-dev",
-      "dependsOn": [
-        "cpp_library_template@latest:pkg:gem/cpp_library_template@latest"
-      ]
-    }
-  ]
-}
-
-```
-
-**cdxgen** was able to pick up all direct dependencies, most likely due to `CMakeLists.txt` parsing, since it doesn’t not contain any information for transitive dependencies or licenses, the SBOM is missing dependency tree. you can also note the `purl` are incorrect, and prefixed with `generic` .
-
-Generating `conan.lock` might yield better results:
-
-```tsx
-conan lock create conanfile.py
-```
-
-Rerun, output should be:
-
-```tsx
-{
-  "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
-  "bomFormat": "CycloneDX",
-  "specVersion": "1.5",
-  "version": 1,
-  "metadata": {
-    "tools": {
-      "components": [
-        {
-          "bom-ref": "pkg:npm/@cyclonedx/cdxgen@10.6.1",
-          "type": "application",
-          "author": "OWASP Foundation",
-          "publisher": "OWASP Foundation",
-          "group": "@cyclonedx",
-          "name": "cdxgen",
-          "version": "10.6.1",
-          "purl": "pkg:npm/%40cyclonedx/cdxgen@10.6.1"
-        }
-      ]
-    },
-    "component": {
-      "bom-ref": "cpp@0.0.0-dev",
-      "type": "application",
-      "name": "cpp",
-      "version": "0.0.0-dev"
-    }
-  },
-  "components": [
-    {
-      "bom-ref": "cpp_library_template@latest:pkg:gem/cpp_library_template@latest",
-      "type": "application",
-      "name": "cpp_library_template",
-      "version": "latest",
-      "purl": "pkg:gem/cpp_library_template@latest",
-      "components": [
-        {
-          "bom-ref": "cpp_library_template@latest:pkg:generic/hello_world",
-          "type": "application",
-          "name": "hello_world",
-          "purl": "pkg:generic/hello_world"
-        },
-        {
-          "bom-ref": "cpp_library_template@latest:pkg:conan/hello_world@1.0.0",
-          "type": "library",
-          "name": "hello_world",
-          "version": "1.0.0",
-          "purl": "pkg:conan/hello_world@1.0.0"
-        },
-        {
-          "bom-ref": "cpp_library_template@latest:pkg:conan/mathter@1.1.1",
-          "type": "library",
-          "name": "mathter",
-          "version": "1.1.1",
-          "purl": "pkg:conan/mathter@1.1.1"
-        },
-        {
-          "bom-ref": "cpp_library_template@latest:pkg:conan/xsimd@11.1.0",
-          "type": "library",
-          "name": "xsimd",
-          "version": "11.1.0",
-          "purl": "pkg:conan/xsimd@11.1.0"
-        },
-        {
-          "bom-ref": "cpp_library_template@latest:pkg:conan/ms-gsl@4.0.0",
-          "type": "library",
-          "name": "ms-gsl",
-          "version": "4.0.0",
-          "purl": "pkg:conan/ms-gsl@4.0.0"
-        },
-        {
-          "bom-ref": "cpp_library_template@latest:pkg:conan/gtest@1.14.0",
-          "type": "library",
-          "name": "gtest",
-          "version": "1.14.0",
-          "purl": "pkg:conan/gtest@1.14.0"
-        },
-        {
-          "bom-ref": "cpp_library_template@latest:pkg:generic/hello_world",
-          "type": "library",
-          "name": "hello_world",
-          "purl": "pkg:generic/hello_world"
-        },
-        {
-          "bom-ref": "cpp_library_template@latest:pkg:generic/gtest",
-          "type": "library",
-          "name": "gtest",
-          "purl": "pkg:generic/gtest",
-          "properties": [
-            {
-              "name": "name_with_version",
-              "value": "googletest-1.14.0"
-            },
-            {
-              "name": "analyzed_version",
-              "value": "googletest-1.14.0"
-            },
-            {
-              "name": "analyzed_source_url",
-              "value": "https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz"
-            },
-            {
-              "name": "analyzed_source_filename",
-              "value": "gtest-1.14.0.tar.gz"
-            },
-            {
-              "name": "analyzed_source_hash",
-              "value": "8ad598c73ad796e0d8280b082cebd82a630d73e73cd3c70057938a6501bba5d7"
-            },
-            {
-              "name": "PkgProvides",
-              "value": "gmock, gmock_main, gtest, gtest_main"
-            },
-            {
-              "name": "available_versions",
-              "value": "1.14.0-1, 1.13.0-1, 1.12.1-1, 1.11.0-2, 1.11.0-1, 1.10.0-1, 1.8.1-1, 1.8.0-5, 1.8.0-4, 1.8.0-3, 1.8.0-2, 1.8.0-1, 1.7.0-5, 1.7.0-4, 1.7.0-2"
-            }
-          ],
-          "evidence": {
-            "identity": {
-              "field": "purl",
-              "confidence": 0.5,
-              "methods": [
-                {
-                  "technique": "source-code-analysis",
-                  "confidence": 0.5,
-                  "value": "Filename /Users/oriavraham/Development/examples/cpp/cpp_library_template/tests/CMakeLists.txt"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "bom-ref": "cpp_library_template@latest:pkg:generic/PackageTest",
-          "type": "library",
-          "name": "PackageTest",
-          "purl": "pkg:generic/PackageTest"
-        },
-        {
-          "bom-ref": "cpp_library_template@latest:pkg:generic/Mathter@1.1.1",
-          "type": "library",
-          "name": "Mathter",
-          "version": "1.1.1",
-          "purl": "pkg:generic/Mathter@1.1.1",
-          "evidence": {
-            "identity": {
-              "field": "purl",
-              "confidence": 0,
-              "methods": [
-                {
-                  "technique": "source-code-analysis",
-                  "confidence": 0.5,
-                  "value": "Filename /Users/oriavraham/Development/examples/cpp/cpp_library_template/src/CMakeLists.txt"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "bom-ref": "cpp_library_template@latest:pkg:generic/Microsoft.GSL@4.0.0",
-          "type": "library",
-          "name": "Microsoft.GSL",
-          "version": "4.0.0",
-          "purl": "pkg:generic/Microsoft.GSL@4.0.0",
-          "evidence": {
-            "identity": {
-              "field": "purl",
-              "confidence": 0,
-              "methods": [
-                {
-                  "technique": "source-code-analysis",
-                  "confidence": 0.5,
-                  "value": "Filename /Users/oriavraham/Development/examples/cpp/cpp_library_template/src/CMakeLists.txt"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    }
-  ],
-  "dependencies": [
-    {
-      "ref": "cpp@0.0.0-dev",
-      "dependsOn": [
-        "cpp_library_template@latest:pkg:gem/cpp_library_template@latest"
-      ]
-    }
-  ]
-}
-
-```
-
-For unknown reasons, `cdxgen` combined the results from `CMakeLists.txt` and `conan.lock`. Even though the dependency graph exists in the lockfile, it failed to parse it and construct a dependency tree in the SBOM.
-
-**Trivy**
-
-```tsx
-manifest-cli sbom --name=cpp --version=0.0.0-dev --generator=trivy -vvv -f test-trivy.json .
-```
-
-**Trivy** takes a different approach, it explicitly uses `conan.lock` files to find all dependencies, then it uses the local conan cache folder and parse [`conanfile.py`](http://conanfile.py) for licenses data.
-
-```tsx
-{
-  "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
-  "bomFormat": "CycloneDX",
-  "specVersion": "1.5",
-  "version": 1,
-  "metadata": {
-    "component": {
-      "bom-ref": "cpp@0.0.0-dev",
-      "type": "application",
-      "name": "cpp",
-      "version": "0.0.0-dev"
-    }
-  },
-  "components": [
-    {
-      "bom-ref": ".@:772e09eb-bff9-46f2-af6a-930e8ced753e",
-      "type": "application",
-      "name": ".",
+      "bom-ref": "pkg:conan/gtest@1.14.0?package-id=4c8f783013cfb2eb",
+      "type": "library",
+      "name": "gtest",
+      "version": "1.14.0",
+      "cpe": "cpe:2.3:a:gtest:gtest:1.14.0:*:*:*:*:*:*:*",
+      "purl": "pkg:conan/gtest@1.14.0",
       "properties": [
         {
-          "name": "aquasecurity:trivy:SchemaVersion",
-          "value": "2"
+          "name": "syft:package:foundBy",
+          "value": "conan-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "c++"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "conan"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "c-conan-lock-entry"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/conan.lock"
         }
-      ],
-      "components": [
+      ]
+    },
+    {
+      "bom-ref": "pkg:conan/hello_world@1.0.0?package-id=1c0e4535a9fb07fc",
+      "type": "library",
+      "name": "hello_world",
+      "version": "1.0.0",
+      "cpe": "cpe:2.3:a:hello-world:hello-world:1.0.0:*:*:*:*:*:*:*",
+      "purl": "pkg:conan/hello_world@1.0.0",
+      "properties": [
         {
-          "bom-ref": ".@:cfe81db4-3e82-4573-adf3-068719b5c7c0",
-          "type": "application",
-          "name": "conan.lock",
-          "properties": [
-            {
-              "name": "aquasecurity:trivy:Class",
-              "value": "lang-pkgs"
-            },
-            {
-              "name": "aquasecurity:trivy:Type",
-              "value": "conan"
-            }
-          ]
+          "name": "syft:package:foundBy",
+          "value": "conan-cataloger"
         },
         {
-          "bom-ref": ".@:pkg:conan/gtest@1.14.0",
-          "type": "library",
-          "name": "gtest",
-          "version": "1.14.0",
-          "purl": "pkg:conan/gtest@1.14.0",
-          "properties": [
-            {
-              "name": "aquasecurity:trivy:PkgID",
-              "value": "gtest/1.14.0"
-            },
-            {
-              "name": "aquasecurity:trivy:PkgType",
-              "value": "conan"
-            }
-          ]
+          "name": "syft:package:language",
+          "value": "c++"
         },
         {
-          "bom-ref": ".@:pkg:conan/hello_world@1.0.0",
-          "type": "library",
-          "name": "hello_world",
-          "version": "1.0.0",
-          "purl": "pkg:conan/hello_world@1.0.0",
-          "properties": [
-            {
-              "name": "aquasecurity:trivy:PkgID",
-              "value": "hello_world/1.0.0"
-            },
-            {
-              "name": "aquasecurity:trivy:PkgType",
-              "value": "conan"
-            }
-          ]
+          "name": "syft:package:type",
+          "value": "conan"
         },
         {
-          "bom-ref": ".@:pkg:conan/mathter@1.1.1",
-          "type": "library",
-          "name": "mathter",
-          "version": "1.1.1",
-          "purl": "pkg:conan/mathter@1.1.1",
-          "properties": [
-            {
-              "name": "aquasecurity:trivy:PkgID",
-              "value": "mathter/1.1.1"
-            },
-            {
-              "name": "aquasecurity:trivy:PkgType",
-              "value": "conan"
-            }
-          ]
+          "name": "syft:package:metadataType",
+          "value": "c-conan-lock-entry"
         },
         {
-          "bom-ref": ".@:pkg:conan/ms-gsl@4.0.0",
-          "type": "library",
-          "name": "ms-gsl",
-          "version": "4.0.0",
-          "purl": "pkg:conan/ms-gsl@4.0.0",
-          "properties": [
-            {
-              "name": "aquasecurity:trivy:PkgID",
-              "value": "ms-gsl/4.0.0"
-            },
-            {
-              "name": "aquasecurity:trivy:PkgType",
-              "value": "conan"
-            }
-          ]
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:hello-world:hello_world:1.0.0:*:*:*:*:*:*:*"
         },
         {
-          "bom-ref": ".@:pkg:conan/xsimd@11.1.0",
-          "type": "library",
-          "name": "xsimd",
-          "version": "11.1.0",
-          "purl": "pkg:conan/xsimd@11.1.0",
-          "properties": [
-            {
-              "name": "aquasecurity:trivy:PkgID",
-              "value": "xsimd/11.1.0"
-            },
-            {
-              "name": "aquasecurity:trivy:PkgType",
-              "value": "conan"
-            }
-          ]
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:hello_world:hello-world:1.0.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:hello_world:hello_world:1.0.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:hello:hello-world:1.0.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:hello:hello_world:1.0.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/conan.lock"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:conan/mathter@1.1.1?package-id=6a9872a2438c3cba",
+      "type": "library",
+      "name": "mathter",
+      "version": "1.1.1",
+      "cpe": "cpe:2.3:a:mathter:mathter:1.1.1:*:*:*:*:*:*:*",
+      "purl": "pkg:conan/mathter@1.1.1",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "conan-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "c++"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "conan"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "c-conan-lock-entry"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/conan.lock"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:conan/ms-gsl@4.0.0?package-id=8561fa79ef7b4a03",
+      "type": "library",
+      "name": "ms-gsl",
+      "version": "4.0.0",
+      "cpe": "cpe:2.3:a:ms-gsl:ms-gsl:4.0.0:*:*:*:*:*:*:*",
+      "purl": "pkg:conan/ms-gsl@4.0.0",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "conan-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "c++"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "conan"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "c-conan-lock-entry"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:ms-gsl:ms_gsl:4.0.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:ms_gsl:ms-gsl:4.0.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:ms_gsl:ms_gsl:4.0.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:ms:ms-gsl:4.0.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:ms:ms_gsl:4.0.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/conan.lock"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:conan/xsimd@11.1.0?package-id=82c175e62a3194ad",
+      "type": "library",
+      "name": "xsimd",
+      "version": "11.1.0",
+      "cpe": "cpe:2.3:a:xsimd:xsimd:11.1.0:*:*:*:*:*:*:*",
+      "purl": "pkg:conan/xsimd@11.1.0",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "conan-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "c++"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "conan"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "c-conan-lock-entry"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/conan.lock"
         }
       ]
     }
   ],
   "dependencies": [
     {
-      "ref": ".@:772e09eb-bff9-46f2-af6a-930e8ced753e",
+      "ref": "pkg:conan/hello_world@1.0.0?package-id=1c0e4535a9fb07fc",
       "dependsOn": [
-        ".@:cfe81db4-3e82-4573-adf3-068719b5c7c0"
+        "pkg:conan/mathter@1.1.1?package-id=6a9872a2438c3cba",
+        "pkg:conan/ms-gsl@4.0.0?package-id=8561fa79ef7b4a03"
       ]
     },
     {
-      "ref": ".@:cfe81db4-3e82-4573-adf3-068719b5c7c0",
+      "ref": "pkg:conan/mathter@1.1.1?package-id=6a9872a2438c3cba",
       "dependsOn": [
-        ".@:pkg:conan/gtest@1.14.0",
-        ".@:pkg:conan/hello_world@1.0.0",
-        ".@:pkg:conan/mathter@1.1.1",
-        ".@:pkg:conan/ms-gsl@4.0.0"
-      ]
-    },
-    {
-      "ref": ".@:pkg:conan/gtest@1.14.0",
-      "dependsOn": []
-    },
-    {
-      "ref": ".@:pkg:conan/hello_world@1.0.0",
-      "dependsOn": [
-        ".@:pkg:conan/mathter@1.1.1",
-        ".@:pkg:conan/ms-gsl@4.0.0"
-      ]
-    },
-    {
-      "ref": ".@:pkg:conan/mathter@1.1.1",
-      "dependsOn": [
-        ".@:pkg:conan/xsimd@11.1.0"
-      ]
-    },
-    {
-      "ref": ".@:pkg:conan/ms-gsl@4.0.0",
-      "dependsOn": []
-    },
-    {
-      "ref": ".@:pkg:conan/xsimd@11.1.0",
-      "dependsOn": []
-    },
-    {
-      "ref": "cpp@0.0.0-dev",
-      "dependsOn": [
-        ".@:772e09eb-bff9-46f2-af6a-930e8ced753e"
+        "pkg:conan/xsimd@11.1.0?package-id=82c175e62a3194ad"
       ]
     }
   ]
 }
-
 ```
 
-The generator produced an accurate and comprehensive dependency tree, inclusive of license data for all identified direct and indirect components, meeting all requirements for a high-quality SBOM.
+The results appear to include all build and runtime dependencies with an accurate dependency tree; however, they lack license data. This type of information is not contained in the `conan.lock` file. Syft also generates CPEs which are helpful for license and vulnerability matching.
+
+#### **Cdxgen**
+
+Cdxgen supports parsing `CMakeLists.txt` and `conan.lock` (among other files).
+
+```bash
+conan lock create conanfile.py --lockfile-out=conan.lock
+```
+
+then generate with:
+
+```bash
+manifest-cli sbom --name=cpp --version=0.0.0-dev --generator=cdxgen -vvv -f cdxgen-sbom.json .
+```
+
+```tsx
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2025-02-10T14:35:56-06:00",
+    "lifecycles": [
+      {
+        "phase": "build"
+      },
+      {
+        "phase": "post-build"
+      }
+    ],
+    "tools": {
+      "components": [
+        {
+          "bom-ref": "pkg:npm/@cyclonedx/cdxgen@11.1.7",
+          "type": "application",
+          "authors": [
+            {
+              "name": "OWASP Foundation"
+            }
+          ],
+          "publisher": "OWASP Foundation",
+          "group": "@cyclonedx",
+          "name": "cdxgen",
+          "version": "11.1.7",
+          "purl": "pkg:npm/%40cyclonedx/cdxgen@11.1.7"
+        }
+      ]
+    },
+    "authors": [
+      {
+        "name": "OWASP Foundation"
+      }
+    ],
+    "component": {
+      "bom-ref": "0a68eb57-c88a-5f34-9e9d-27f85e68af4f",
+      "type": "application",
+      "name": "cpp",
+      "version": "0.0.0-dev"
+    },
+    "properties": [
+      {
+        "name": "cdx:bom:componentTypes",
+        "value": "conan\\ngeneric"
+      }
+    ]
+  },
+  "components": [
+    {
+      "bom-ref": "pkg:conan/hello_world@1.0.0",
+      "type": "library",
+      "name": "hello_world",
+      "version": "1.0.0",
+      "purl": "pkg:conan/hello_world@1.0.0"
+    },
+    {
+      "bom-ref": "pkg:conan/mathter@1.1.1",
+      "type": "library",
+      "name": "mathter",
+      "version": "1.1.1",
+      "purl": "pkg:conan/mathter@1.1.1"
+    },
+    {
+      "bom-ref": "pkg:conan/xsimd@11.1.0",
+      "type": "library",
+      "name": "xsimd",
+      "version": "11.1.0",
+      "purl": "pkg:conan/xsimd@11.1.0"
+    },
+    {
+      "bom-ref": "pkg:conan/ms-gsl@4.0.0",
+      "type": "library",
+      "name": "ms-gsl",
+      "version": "4.0.0",
+      "purl": "pkg:conan/ms-gsl@4.0.0"
+    },
+    {
+      "bom-ref": "pkg:conan/gtest@1.14.0",
+      "type": "library",
+      "name": "gtest",
+      "version": "1.14.0",
+      "purl": "pkg:conan/gtest@1.14.0"
+    },
+    {
+      "bom-ref": "pkg:generic/hello_world@1.0.0",
+      "type": "library",
+      "name": "hello_world",
+      "version": "1.0.0",
+      "purl": "pkg:generic/hello_world@1.0.0"
+    },
+    {
+      "bom-ref": "pkg:generic/gtest",
+      "type": "library",
+      "name": "gtest",
+      "purl": "pkg:generic/gtest",
+      "properties": [
+        {
+          "name": "name_with_version",
+          "value": "googletest-1.15.0"
+        },
+        {
+          "name": "analyzed_version",
+          "value": "googletest-1.15.0"
+        },
+        {
+          "name": "analyzed_source_url",
+          "value": "https://github.com/google/googletest/archive/refs/tags/v1.15.0.tar.gz"
+        },
+        {
+          "name": "analyzed_source_filename",
+          "value": "gtest-1.15.0.tar.gz"
+        },
+        {
+          "name": "analyzed_source_hash",
+          "value": "7315acb6bf10e99f332c8a43f00d5fbb1ee6ca48c52f6b936991b216c586aaad"
+        },
+        {
+          "name": "PkgProvides",
+          "value": "gmock, gmock_main, gtest, gtest_main"
+        },
+        {
+          "name": "available_versions",
+          "value": "1.15.0-1, 1.14.0-2, 1.14.0-1, 1.13.0-1, 1.12.1-1, 1.11.0-2, 1.11.0-1, 1.10.0-1, 1.8.1-1, 1.8.0-5, 1.8.0-4, 1.8.0-3, 1.8.0-2, 1.8.0-1, 1.7.0-5, 1.7.0-4, 1.7.0-2"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "confidence": 0.5,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.5,
+                "value": "Filename /Users/oriavraham/Development/examples/examples-cpp-conan/tests/CMakeLists.txt"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "bom-ref": "pkg:generic/hello_world",
+      "type": "library",
+      "name": "hello_world",
+      "purl": "pkg:generic/hello_world",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.5,
+                "value": "Filename /Users/oriavraham/Development/examples/examples-cpp-conan/test_package/CMakeLists.txt"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "bom-ref": "pkg:generic/PackageTest",
+      "type": "library",
+      "name": "PackageTest",
+      "purl": "pkg:generic/PackageTest"
+    },
+    {
+      "bom-ref": "pkg:generic/Mathter@1.1.1",
+      "type": "library",
+      "name": "Mathter",
+      "version": "1.1.1",
+      "purl": "pkg:generic/Mathter@1.1.1",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.5,
+                "value": "Filename /Users/oriavraham/Development/examples/examples-cpp-conan/src/CMakeLists.txt"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "bom-ref": "pkg:generic/Microsoft.GSL@4.0.0",
+      "type": "library",
+      "name": "Microsoft.GSL",
+      "version": "4.0.0",
+      "purl": "pkg:generic/Microsoft.GSL@4.0.0",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.5,
+                "value": "Filename /Users/oriavraham/Development/examples/examples-cpp-conan/src/CMakeLists.txt"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "pkg:generic/hello_world@1.0.0"
+    }
+  ]
+}
+```
+
+#### **Trivy**
+
+**Trivy** takes a different approach, it explicitly uses `conan.lock` files to find all dependencies, then it uses the local conan cache folder and parse [`conanfile.py`](http://conanfile.py) for license data.
+
+Install dependencies and generate a lockfile with:
+
+```bash
+conan install . --build=missing
+conan lock create conanfile.py --lockfile-out=conan.lock
+```
+
+then generate with:
+
+```bash
+manifest-cli sbom --name=cpp --version=0.0.0-dev --generator=trivy -vvv -f trivy-sbom.json .
+```
+
+```tsx
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2025-02-10T14:45:09-06:00",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "group": "aquasecurity",
+          "name": "trivy",
+          "version": "0.58.2"
+        }
+      ]
+    },
+    "component": {
+      "bom-ref": "0a68eb57-c88a-5f34-9e9d-27f85e68af4f",
+      "type": "application",
+      "name": "cpp",
+      "version": "0.0.0-dev"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "2051f1f4-0ca3-492f-8b63-1039d24ed686",
+      "type": "application",
+      "name": "conan.lock",
+      "properties": [
+        {
+          "name": "aquasecurity:trivy:Class",
+          "value": "lang-pkgs"
+        },
+        {
+          "name": "aquasecurity:trivy:Type",
+          "value": "conan"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:conan/gtest@1.14.0",
+      "type": "library",
+      "name": "gtest",
+      "version": "1.14.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-3-Clause"
+          }
+        }
+      ],
+      "purl": "pkg:conan/gtest@1.14.0",
+      "properties": [
+        {
+          "name": "aquasecurity:trivy:PkgID",
+          "value": "gtest/1.14.0"
+        },
+        {
+          "name": "aquasecurity:trivy:PkgType",
+          "value": "conan"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:conan/hello_world@1.0.0",
+      "type": "library",
+      "name": "hello_world",
+      "version": "1.0.0",
+      "purl": "pkg:conan/hello_world@1.0.0",
+      "properties": [
+        {
+          "name": "aquasecurity:trivy:PkgID",
+          "value": "hello_world/1.0.0"
+        },
+        {
+          "name": "aquasecurity:trivy:PkgType",
+          "value": "conan"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:conan/mathter@1.1.1",
+      "type": "library",
+      "name": "mathter",
+      "version": "1.1.1",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "purl": "pkg:conan/mathter@1.1.1",
+      "properties": [
+        {
+          "name": "aquasecurity:trivy:PkgID",
+          "value": "mathter/1.1.1"
+        },
+        {
+          "name": "aquasecurity:trivy:PkgType",
+          "value": "conan"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:conan/ms-gsl@4.0.0",
+      "type": "library",
+      "name": "ms-gsl",
+      "version": "4.0.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "purl": "pkg:conan/ms-gsl@4.0.0",
+      "properties": [
+        {
+          "name": "aquasecurity:trivy:PkgID",
+          "value": "ms-gsl/4.0.0"
+        },
+        {
+          "name": "aquasecurity:trivy:PkgType",
+          "value": "conan"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:conan/xsimd@11.1.0",
+      "type": "library",
+      "name": "xsimd",
+      "version": "11.1.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-3-Clause"
+          }
+        }
+      ],
+      "purl": "pkg:conan/xsimd@11.1.0",
+      "properties": [
+        {
+          "name": "aquasecurity:trivy:PkgID",
+          "value": "xsimd/11.1.0"
+        },
+        {
+          "name": "aquasecurity:trivy:PkgType",
+          "value": "conan"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "2051f1f4-0ca3-492f-8b63-1039d24ed686",
+      "dependsOn": [
+        "pkg:conan/gtest@1.14.0",
+        "pkg:conan/hello_world@1.0.0"
+      ]
+    },
+    {
+      "ref": "d86f70b0-a6a9-4a25-9b4c-488d2854d499",
+      "dependsOn": [
+        "2051f1f4-0ca3-492f-8b63-1039d24ed686"
+      ]
+    },
+    {
+      "ref": "pkg:conan/gtest@1.14.0"
+    },
+    {
+      "ref": "pkg:conan/hello_world@1.0.0",
+      "dependsOn": [
+        "pkg:conan/mathter@1.1.1",
+        "pkg:conan/ms-gsl@4.0.0"
+      ]
+    },
+    {
+      "ref": "pkg:conan/mathter@1.1.1",
+      "dependsOn": [
+        "pkg:conan/xsimd@11.1.0"
+      ]
+    },
+    {
+      "ref": "pkg:conan/ms-gsl@4.0.0"
+    },
+    {
+      "ref": "pkg:conan/xsimd@11.1.0"
+    }
+  ]
+}
+```
+
+Trivy produced an accurate and comprehensive dependency tree, inclusive of license data for all identified direct and indirect components, meeting all requirements for a high-quality SBOM.
 
 ### conan v2
 
@@ -1119,13 +902,13 @@ As previously discussed, you will need to have Conan v2+ installed and configure
 
 Install the extension by running:
 
-```tsx
+```bash
 conan config install https://github.com/conan-io/conan-extensions.git
 ```
 
 Now, create a lockfile:
 
-```tsx
+```bash
 conan install . --build=missing --lockfile-out=conan.lock
 ```
 
@@ -1327,7 +1110,7 @@ As expected, the deep integration with Conan's core functions enabled the extens
 
 In regards to SBOM generation, the C/++ community using Conan is fairly covered by open source generators that can generate quality outputs.
 
-If you're using conan v1, we generally recommend t**rivy** for most scenarios because it can provide license data. However, if license data isn't important to you and you prefer the addition of CPE, s**yft** would be the next best option.
+If you're using conan v1, we generally recommend t**Trivy** for most scenarios because it can provide license data. However, if license data isn't important to you and you prefer the addition of CPE, s**yft** would be the next best option.
 
 Regrettably, it’s fair to state that as of today, **cdxgen** should not be used in most scenarios due to its inferior results compared to other options. However, it may be useful for projects that lack conan support.
 
@@ -1340,7 +1123,7 @@ If you want to use conan V2, your only option is to use the conan extension solu
 First, you need to install Conan. If you don’t already have it, you can install it using pip:
 
 ```
-pip install conan # for v1 "conan==1.64.0"
+pip install conan # for v1 "conan==1.66.0"
 
 ```
 
